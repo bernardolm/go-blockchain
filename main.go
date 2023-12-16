@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/bernardolm/blockchain-poc/blockchain"
+	"github.com/bernardolm/go-blockchain/blockchain"
 )
 
 func main() {

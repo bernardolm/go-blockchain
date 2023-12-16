@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bernardolm/blockchain-poc/helpers"
+	"github.com/bernardolm/go-blockchain/helpers"
 )
 
 type header struct {
