@@ -21,11 +21,11 @@ type payload struct {
 
 type block struct {
 	header  header
-	payload payload
+	Payload *payload
 }
 
 type minedBlock struct {
-	minedBlock *block
+	MinedBlock *block
 	minedHash  string
 	shortHash  string
 	mineTime   int
@@ -55,7 +55,7 @@ func (b *Blockchain) lastBlock() *block {
 	return &b.chain[len(b.chain)-1]
 }
 
-func (b *Blockchain) get() []block {
+func (b *Blockchain) Chain() []block {
 	return b.chain
 }
 
@@ -63,9 +63,9 @@ func (b *Blockchain) getPreviousBlockHash() string {
 	return b.lastBlock().header.blockHash
 }
 
-func (b *Blockchain) createBlock(data []byte) *payload {
+func (b *Blockchain) CreateBlock(data []byte) *payload {
 	p := payload{
-		sequence:     b.lastBlock().payload.sequence + 1,
+		sequence:     b.lastBlock().Payload.sequence + 1,
 		timestamp:    time.Now().UnixNano(),
 		data:         data,
 		previousHash: b.getPreviousBlockHash(),
@@ -76,29 +76,26 @@ func (b *Blockchain) createBlock(data []byte) *payload {
 	return &p
 }
 
-func (b *Blockchain) mineBlock(p payload) *minedBlock {
+func (b *Blockchain) MineBlock(p *payload) *minedBlock {
 	nonce := 0
 	startTime := time.Now().UnixNano()
 
 	for {
-		blockHash := helpers.Hash(p)
-		proofingHash := helpers.Hash(blockHash + nonce)
+		blockHash := helpers.Hash(*p)
+		proofingHash := helpers.Hash(blockHash + fmt.Sprint(nonce))
 
-		if helpers.IsHashProofed( /*{
-		  hash: proofingHash,
-		  difficulty: this.difficulty,
-		  prefix: this.powPrefix
-		})*/) {
+		if helpers.IsHashProofed(proofingHash, b.difficulty, b.powPrefix) {
 			endTime := time.Now().UnixNano()
 			shortHash := blockHash[0:12]
 			mineTime := (endTime - startTime) / 1000
 
-			fmt.Printf("Mined block %d in %d seconds. Hash: %s (%d attempts)\n",
-				p.sequence, mineTime, &shortHash)
+			fmt.Printf("Mined block %d in %d seconds. "+
+				"Hash: %v (%v attempts)\n",
+				p.sequence, mineTime, &shortHash, nonce)
 
 			minedBlock := minedBlock{
-				minedBlock: &block{
-					payload: p,
+				MinedBlock: &block{
+					Payload: p,
 					header: header{
 						nonce:     nonce,
 						blockHash: blockHash,
@@ -114,35 +111,33 @@ func (b *Blockchain) mineBlock(p payload) *minedBlock {
 	}
 }
 
-func (b *Blockchain) verifyBlock(bl block) bool {
-	if bl.payload.previousHash != b.getPreviousBlockHash() {
+func (b *Blockchain) verifyBlock(bl *block) bool {
+	if bl.Payload.previousHash != b.getPreviousBlockHash() {
 		fmt.Printf(
 			"Invalid block #%d: Previous block hash is %s not %s\n",
-			bl.payload.sequence,
+			bl.Payload.sequence,
 			b.getPreviousBlockHash()[0:12],
-			bl.payload.previousHash[0:12],
+			bl.Payload.previousHash[0:12],
 		)
 		return false
 	}
 
-	if !helpers.IsHashProofed( /*{
-	  hash: hash(hash(JSON.stringify(bl.payload)) + bl.header.nonce),
-	  difficulty: this.difficulty,
-	  prefix: this.powPrefix
-	})*/) {
+	h := fmt.Sprintf("%s%d", helpers.Hash(bl.Payload), bl.header.nonce)
+
+	if !helpers.IsHashProofed(h, b.difficulty, b.powPrefix) {
 		fmt.Printf(
 			"Invalid block #%d: "+
 				"Hash is not proofed, nonce %d is not valid\n",
-			bl.payload.sequence, bl.header.nonce)
+			bl.Payload.sequence, bl.header.nonce)
 		return false
 	}
 
 	return true
 }
 
-func (b *Blockchain) pushBlock(bl block) []block {
+func (b *Blockchain) PushBlock(bl *block) []block {
 	if b.verifyBlock(bl) {
-		b.chain = append(b.chain, bl)
+		b.chain = append(b.chain, *bl)
 		fmt.Printf("Pushed block %v\n", bl)
 	}
 	return b.chain
