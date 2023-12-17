@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/bernardolm/go-blockchain/helpers"
 )
 
@@ -13,10 +15,10 @@ type header struct {
 }
 
 type payload struct {
-	sequence     int
-	timestamp    int64
-	data         interface{}
-	previousHash string
+	Sequence     int
+	Timestamp    int64
+	Data         interface{}
+	PreviousHash string
 }
 
 type block struct {
@@ -39,15 +41,15 @@ type Blockchain struct {
 
 func (b *Blockchain) createGenesisBlock() *block {
 	p := payload{
-		timestamp:    time.Now().UnixNano(),
-		data:         string("Genesis Block"),
-		previousHash: "",
+		Timestamp: time.Now().UnixNano(),
+		Data:      string("Genesis Block"),
 	}
 
 	return &block{
 		header: header{
 			blockHash: helpers.Hash(p),
 		},
+		Payload: &p,
 	}
 }
 
@@ -65,13 +67,13 @@ func (b *Blockchain) getPreviousBlockHash() string {
 
 func (b *Blockchain) CreateBlock(data []byte) *payload {
 	p := payload{
-		sequence:     b.lastBlock().Payload.sequence + 1,
-		timestamp:    time.Now().UnixNano(),
-		data:         data,
-		previousHash: b.getPreviousBlockHash(),
+		Sequence:     b.lastBlock().Payload.Sequence + 1,
+		Timestamp:    time.Now().UnixNano(),
+		Data:         data,
+		PreviousHash: b.getPreviousBlockHash(),
 	}
 
-	fmt.Printf("Created block %d: %v\n", p.sequence, p)
+	log.Infof("Created block %d: %#v", p.Sequence, p)
 
 	return &p
 }
@@ -81,6 +83,13 @@ func (b *Blockchain) MineBlock(p *payload) *minedBlock {
 	startTime := time.Now().UnixNano()
 
 	for {
+		/******************* FOR SECURITY **********************/
+		limit := 10000
+		if nonce >= limit {
+			log.Panicf("too many attemps: %d", limit)
+		}
+		/******************* FOR SECURITY **********************/
+
 		blockHash := helpers.Hash(*p)
 		proofingHash := helpers.Hash(blockHash + fmt.Sprint(nonce))
 
@@ -89,9 +98,9 @@ func (b *Blockchain) MineBlock(p *payload) *minedBlock {
 			shortHash := blockHash[0:12]
 			mineTime := (endTime - startTime) / 1000
 
-			fmt.Printf("Mined block %d in %d seconds. "+
-				"Hash: %v (%v attempts)\n",
-				p.sequence, mineTime, &shortHash, nonce)
+			log.Infof("Mined block %d in %d seconds. "+
+				"Hash: %v (%v attempts)",
+				p.Sequence, mineTime, &shortHash, nonce)
 
 			minedBlock := minedBlock{
 				MinedBlock: &block{
@@ -112,12 +121,12 @@ func (b *Blockchain) MineBlock(p *payload) *minedBlock {
 }
 
 func (b *Blockchain) verifyBlock(bl *block) bool {
-	if bl.Payload.previousHash != b.getPreviousBlockHash() {
-		fmt.Printf(
-			"Invalid block #%d: Previous block hash is %s not %s\n",
-			bl.Payload.sequence,
+	if bl.Payload.PreviousHash != b.getPreviousBlockHash() {
+		log.Errorf(
+			"Invalid block #%d: Previous block hash is %s not %s",
+			bl.Payload.Sequence,
 			b.getPreviousBlockHash()[0:12],
-			bl.Payload.previousHash[0:12],
+			bl.Payload.PreviousHash[0:12],
 		)
 		return false
 	}
@@ -125,10 +134,9 @@ func (b *Blockchain) verifyBlock(bl *block) bool {
 	h := fmt.Sprintf("%s%d", helpers.Hash(bl.Payload), bl.header.nonce)
 
 	if !helpers.IsHashProofed(h, b.difficulty, b.powPrefix) {
-		fmt.Printf(
-			"Invalid block #%d: "+
-				"Hash is not proofed, nonce %d is not valid\n",
-			bl.Payload.sequence, bl.header.nonce)
+		log.Errorf(
+			"Invalid block #%d: Hash is not proofed, nonce %d is not valid",
+			bl.Payload.Sequence, bl.header.nonce)
 		return false
 	}
 
@@ -138,22 +146,20 @@ func (b *Blockchain) verifyBlock(bl *block) bool {
 func (b *Blockchain) PushBlock(bl *block) []block {
 	if b.verifyBlock(bl) {
 		b.chain = append(b.chain, *bl)
-		fmt.Printf("Pushed block %v\n", bl)
+		log.Infof("Pushed block %v", bl)
 	}
 	return b.chain
 }
 
 func New(difficulty int) *Blockchain {
-	d := 4
-	if difficulty > 0 {
-		d = 4
-	}
-
 	blockchain := Blockchain{
-		difficulty: d,
+		difficulty: difficulty,
+		chain:      []block{},
 	}
 
 	genesisBlock := blockchain.createGenesisBlock()
+	log.Debugf("genesisBlock: %#v", genesisBlock)
+
 	blockchain.chain = append(blockchain.chain, *genesisBlock)
 
 	return &blockchain

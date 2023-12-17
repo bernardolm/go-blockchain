@@ -3,54 +3,50 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/bernardolm/go-blockchain/blockchain"
 )
 
 func main() {
+	log.SetLevel(log.DebugLevel)
+
 	flag.Parse()
-	if flag.NArg() == 0 {
-		flag.Usage()
-		fmt.Printf("args are required: difficulty and block number\n")
-		os.Exit(1)
-	}
-
 	args := flag.Args()
+	difficulty := 1
+	blockNumber := 1
 
-	if len(args) < 1 {
-		fmt.Printf("difficulty required\n")
-		os.Exit(1)
-	}
-	difficult, err := strconv.Atoi(args[0])
-	if err != nil {
-		fmt.Printf("difficulty error: %\n", err)
-		os.Exit(1)
-	}
-	bc := blockchain.New(difficult)
+	var err error
 
-	if len(args) < 2 {
-		fmt.Printf("block number required\n")
-		os.Exit(1)
+	if len(args) > 0 {
+		difficulty, err = strconv.Atoi(args[0])
+		if err != nil {
+			log.Fatalf("difficulty error: %v", err)
+			// os.Exit(1)
+		}
 	}
-	var blockNumber int
-	blockNumber, err = strconv.Atoi(args[1])
-	if err != nil {
-		fmt.Printf("block number error: %\n", err)
-		os.Exit(1)
+	log.Debugf("difficulty: %d", difficulty)
+	bc := blockchain.New(difficulty)
+
+	if len(args) > 1 {
+		blockNumber, err = strconv.Atoi(args[1])
+		if err != nil {
+			log.Fatalf("block number error: %v", err)
+			// os.Exit(1)
+		}
 	}
+	log.Debugf("block number: %d", blockNumber)
 
 	chain := bc.Chain()
 
 	for i := 1; i <= blockNumber; i++ {
-
-		block := bc.CreateBlock([]byte(fmt.Sprintf("Block %d", i)))
+		data := []byte(fmt.Sprintf("Block %d", i))
+		block := bc.CreateBlock(data)
 		mineInfo := bc.MineBlock(block)
-
 		chain = bc.PushBlock(mineInfo.MinedBlock)
 	}
 
-	fmt.Printf("--- GENERATED CHAIN ---\n")
-	fmt.Println(chain)
+	log.Infof("--- GENERATED CHAIN ---\n%#v", chain)
 }

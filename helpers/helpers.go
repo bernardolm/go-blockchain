@@ -5,7 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Hash(data interface{}) string {
@@ -23,8 +24,8 @@ func Hash(data interface{}) string {
 	h.Write(byts)
 	bs := h.Sum(nil)
 
-	fmt.Printf("%v\n", data)
-	fmt.Printf("%x\n", bs)
+	// log.Debugf("Hash.data: '%#v'", data)
+	// log.Debugf("Hash.bytes: '%x'", bs)
 
 	return string(bs)
 }
