@@ -2,70 +2,83 @@ package blockchain
 
 import (
 	"fmt"
+	"math"
 	"time"
 
+	"github.com/k0kubun/pp"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bernardolm/go-blockchain/helpers"
 )
 
 type header struct {
-	nonce     int
 	blockHash string
+	nonce     int
 }
 
 type payload struct {
+	Data         string
+	PreviousHash string
 	Sequence     int
 	Timestamp    int64
-	Data         interface{}
-	PreviousHash string
 }
 
 type block struct {
 	header  header
-	Payload *payload
+	Payload payload
 }
 
+type chain []block
+
 type minedBlock struct {
-	MinedBlock *block
+	MinedBlock block
 	minedHash  string
-	shortHash  string
 	mineTime   int
+	shortHash  string
 }
 
 type Blockchain struct {
-	chain      []block
-	powPrefix  string
-	difficulty int
+	blockNumber int
+	chain       chain
+	difficulty  int
+	powPrefix   string
 }
 
-func (b *Blockchain) createGenesisBlock() *block {
+func (b Blockchain) createGenesisBlock() block {
 	p := payload{
 		Timestamp: time.Now().UnixNano(),
 		Data:      string("Genesis Block"),
 	}
 
-	return &block{
+	data := fmt.Sprintf("%#v", p)
+	h := helpers.Hash(data)
+
+	// log.
+	// 	WithField("data", data).
+	// 	WithField("hash", h[0:b.difficulty]).
+	// 	Debug("Blockchain.createGenesisBlock: hash created from data")
+
+	return block{
 		header: header{
-			blockHash: helpers.Hash(p),
+			blockHash: h,
 		},
-		Payload: &p,
+		Payload: p,
 	}
 }
 
-func (b *Blockchain) lastBlock() *block {
-	return &b.chain[len(b.chain)-1]
+func (b Blockchain) lastBlock() block {
+	return b.chain[len(b.chain)-1]
 }
 
-func (b *Blockchain) Chain() []block {
+func (b Blockchain) Chain() []block {
 	return b.chain
 }
 
-func (b *Blockchain) getPreviousBlockHash() string {
+func (b Blockchain) getPreviousBlockHash() string {
 	return b.lastBlock().header.blockHash
 }
 
-func (b *Blockchain) CreateBlock(data []byte) *payload {
+func (b Blockchain) CreatePayload(data string) payload {
 	p := payload{
 		Sequence:     b.lastBlock().Payload.Sequence + 1,
 		Timestamp:    time.Now().UnixNano(),
@@ -73,37 +86,60 @@ func (b *Blockchain) CreateBlock(data []byte) *payload {
 		PreviousHash: b.getPreviousBlockHash(),
 	}
 
-	log.Infof("Created block %d: %#v", p.Sequence, p)
+	// pl := fmt.Sprintf("%#v", p)
 
-	return &p
+	log.
+		WithField("data", p.Data).
+		WithField("lastBlockPayloadSequence", b.lastBlock().Payload.Sequence).
+		// WithField("payload", pl).
+		WithField("previousHash", p.PreviousHash[0:b.difficulty]).
+		WithField("sequence", p.Sequence).
+		// WithField("timestamp", p.Timestamp).
+		Infof("Block #%d created", p.Sequence)
+
+	return p
 }
 
-func (b *Blockchain) MineBlock(p *payload) *minedBlock {
+func (b Blockchain) Mine(p payload) minedBlock {
 	nonce := 0
-	startTime := time.Now().UnixNano()
+	start := time.Now()
 
 	for {
-		/******************* FOR SECURITY **********************/
-		limit := 10000
-		if nonce >= limit {
-			log.Panicf("too many attemps: %d", limit)
+		/******************* FOR SECURITY *********************/
+		if float64(nonce) >= math.Pow((26+10), float64(b.difficulty)) {
+			log.Fatal("it's enough")
 		}
-		/******************* FOR SECURITY **********************/
+		/******************* FOR SECURITY *********************/
 
-		blockHash := helpers.Hash(*p)
-		proofingHash := helpers.Hash(blockHash + fmt.Sprint(nonce))
+		data := fmt.Sprintf("%#v", p)
+		blockHash := helpers.Hash(data)
+		proofingData := fmt.Sprintf("%s%d", blockHash, nonce)
+		proofingHash := helpers.Hash(proofingData)
 
-		if helpers.IsHashProofed(proofingHash, b.difficulty, b.powPrefix) {
-			endTime := time.Now().UnixNano()
-			shortHash := blockHash[0:12]
-			mineTime := (endTime - startTime) / 1000
+		log.
+			WithField("blockHash", blockHash[0:b.difficulty]).
+			// WithField("data", data).
+			WithField("nonce", nonce).
+			WithField("proofingData", "..."+
+				proofingData[len(proofingData)-b.difficulty:]).
+			WithField("proofingHash", proofingHash[0:b.difficulty]).
+			Debug("Mine attempt")
 
-			log.Infof("Mined block %d in %d seconds. "+
-				"Hash: %v (%v attempts)",
-				p.Sequence, mineTime, &shortHash, nonce)
+		if helpers.IsHashProofed(
+			proofingHash,
+			b.difficulty,
+			b.powPrefix) {
+			elapsed := time.Since(start)
 
-			minedBlock := minedBlock{
-				MinedBlock: &block{
+			log.
+				WithField("attempts", nonce).
+				WithField("blockHash", blockHash[0:b.difficulty]).
+				WithField("duration", elapsed).
+				WithField("sequence", p.Sequence).
+				Infof("Block #%d mining finished", p.Sequence)
+
+			return minedBlock{
+				MinedBlock: block{
 					Payload: p,
 					header: header{
 						nonce:     nonce,
@@ -111,56 +147,103 @@ func (b *Blockchain) MineBlock(p *payload) *minedBlock {
 					},
 				},
 				minedHash: proofingHash,
-				mineTime:  int(mineTime),
+				mineTime:  int(elapsed),
 			}
-
-			return &minedBlock
 		}
 		nonce++
 	}
 }
 
-func (b *Blockchain) verifyBlock(bl *block) bool {
-	if bl.Payload.PreviousHash != b.getPreviousBlockHash() {
-		log.Errorf(
-			"Invalid block #%d: Previous block hash is %s not %s",
-			bl.Payload.Sequence,
-			b.getPreviousBlockHash()[0:12],
-			bl.Payload.PreviousHash[0:12],
-		)
+func (b Blockchain) verifyBlock(bl block) bool {
+	lastChainBlockHash := b.getPreviousBlockHash()
+	payload := fmt.Sprintf("%#v", bl.Payload)
+
+	cph := bl.Payload.PreviousHash
+	if len(cph) > 0 {
+		cph = bl.Payload.PreviousHash[0:b.difficulty]
+	}
+
+	log.
+		WithField("currentPreviousHash", cph).
+		WithField("lastChainBlockHash", lastChainBlockHash[0:b.difficulty]).
+		WithField("nonce", bl.header.nonce).
+		// WithField("payload", payload).
+		WithField("sequence", bl.Payload.Sequence).
+		Debugf("verifyBlock: Block #%d to check previous",
+			bl.Payload.Sequence)
+
+	if bl.Payload.PreviousHash != lastChainBlockHash {
+		pp.Println(payload)
+
+		log.
+			WithField("nonce", bl.header.nonce).
+			WithField("sequence", bl.Payload.Sequence).
+			Errorf("verifyBlock: Invalid block #%d (previous not equal)",
+				bl.Payload.Sequence)
+
 		return false
 	}
 
-	h := fmt.Sprintf("%s%d", helpers.Hash(bl.Payload), bl.header.nonce)
+	hash := helpers.Hash(payload)
+	dataToProof := fmt.Sprintf("%s%d", hash, bl.header.nonce)
+	hashToProof := helpers.Hash(dataToProof)
 
-	if !helpers.IsHashProofed(h, b.difficulty, b.powPrefix) {
-		log.Errorf(
-			"Invalid block #%d: Hash is not proofed, nonce %d is not valid",
-			bl.Payload.Sequence, bl.header.nonce)
+	log.
+		WithField("payload", payload).
+		WithField("dataToProof", dataToProof).
+		WithField("hash", hash[0:b.difficulty]).
+		WithField("hashToProof", hashToProof[0:b.difficulty]).
+		WithField("nonce", bl.header.nonce).
+		Debugf("verifyBlock: Block #%d to proof hash",
+			bl.Payload.Sequence)
+
+	if !helpers.IsHashProofed(hashToProof, b.difficulty, b.powPrefix) {
+		log.
+			WithField("hashToProof", hashToProof[0:b.difficulty]).
+			WithField("nonce", bl.header.nonce).
+			WithField("sequence", bl.Payload.Sequence).
+			Errorf("verifyBlock: Invalid block #%d (not proofed, nonce invalid)",
+				bl.Payload.Sequence)
+
 		return false
 	}
 
 	return true
 }
 
-func (b *Blockchain) PushBlock(bl *block) []block {
+func (b *Blockchain) PushBlock(bl block) chain {
+	bld := fmt.Sprintf("%#v", bl)
+
+	log.
+		WithField("block", bld).
+		Debug("PushBlock: to verify")
+
 	if b.verifyBlock(bl) {
-		b.chain = append(b.chain, *bl)
-		log.Infof("Pushed block %v", bl)
+		b.chain = append(b.chain, bl)
+		log.
+			// WithField("block", bld).
+			WithField("blockHash", bl.header.blockHash[0:b.difficulty]).
+			WithField("nonce", bl.header.nonce).
+			WithField("sequence", bl.Payload.Sequence).
+			Infof("Pushed verified block #%d", bl.Payload.Sequence)
 	}
+
 	return b.chain
 }
 
-func New(difficulty int) *Blockchain {
+func New(difficulty, blockNumber int) Blockchain {
 	blockchain := Blockchain{
-		difficulty: difficulty,
-		chain:      []block{},
+		difficulty:  difficulty,
+		blockNumber: blockNumber,
 	}
 
-	genesisBlock := blockchain.createGenesisBlock()
-	log.Debugf("genesisBlock: %#v", genesisBlock)
+	gb := blockchain.createGenesisBlock()
+	// log.
+	// 	WithField("block", fmt.Sprintf("%#v", gb)).
+	// 	WithField("hash", gb.header.blockHash[0:difficulty]).
+	// 	Debug("blockchain.New: created genesis block")
 
-	blockchain.chain = append(blockchain.chain, *genesisBlock)
+	blockchain.chain = append(blockchain.chain, gb)
 
-	return &blockchain
+	return blockchain
 }
