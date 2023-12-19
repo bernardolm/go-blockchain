@@ -53,10 +53,10 @@ func (b Blockchain) createGenesisBlock() block {
 	data := fmt.Sprintf("%#v", p)
 	h := helpers.Hash(data)
 
-	// log.
-	// 	WithField("data", data).
-	// 	WithField("hash", h[0:b.difficulty]).
-	// 	Debug("Blockchain.createGenesisBlock: hash created from data")
+	log.
+		WithField("data", data).
+		WithField("hash", h[0:b.difficulty]).
+		Debug("Blockchain.createGenesisBlock: hash created from data")
 
 	return block{
 		header: header{
@@ -86,15 +86,11 @@ func (b Blockchain) CreatePayload(data string) payload {
 		PreviousHash: b.getPreviousBlockHash(),
 	}
 
-	// pl := fmt.Sprintf("%#v", p)
-
 	log.
 		WithField("data", p.Data).
 		WithField("lastBlockPayloadSequence", b.lastBlock().Payload.Sequence).
-		// WithField("payload", pl).
 		WithField("previousHash", p.PreviousHash[0:b.difficulty]).
 		WithField("sequence", p.Sequence).
-		// WithField("timestamp", p.Timestamp).
 		Infof("Block #%d created", p.Sequence)
 
 	return p
@@ -118,7 +114,6 @@ func (b Blockchain) Mine(p payload) minedBlock {
 
 		log.
 			WithField("blockHash", blockHash[0:b.difficulty]).
-			// WithField("data", data).
 			WithField("nonce", nonce).
 			WithField("proofingData", "..."+
 				proofingData[len(proofingData)-b.difficulty:]).
@@ -167,7 +162,6 @@ func (b Blockchain) verifyBlock(bl block) bool {
 		WithField("currentPreviousHash", cph).
 		WithField("lastChainBlockHash", lastChainBlockHash[0:b.difficulty]).
 		WithField("nonce", bl.header.nonce).
-		// WithField("payload", payload).
 		WithField("sequence", bl.Payload.Sequence).
 		Debugf("verifyBlock: Block #%d to check previous",
 			bl.Payload.Sequence)
@@ -221,7 +215,6 @@ func (b *Blockchain) PushBlock(bl block) chain {
 	if b.verifyBlock(bl) {
 		b.chain = append(b.chain, bl)
 		log.
-			// WithField("block", bld).
 			WithField("blockHash", bl.header.blockHash[0:b.difficulty]).
 			WithField("nonce", bl.header.nonce).
 			WithField("sequence", bl.Payload.Sequence).
@@ -238,10 +231,10 @@ func New(difficulty, blockNumber int) Blockchain {
 	}
 
 	gb := blockchain.createGenesisBlock()
-	// log.
-	// 	WithField("block", fmt.Sprintf("%#v", gb)).
-	// 	WithField("hash", gb.header.blockHash[0:difficulty]).
-	// 	Debug("blockchain.New: created genesis block")
+	log.
+		WithField("block", fmt.Sprintf("%#v", gb)).
+		WithField("hash", gb.header.blockHash[0:difficulty]).
+		Debug("blockchain.New: created genesis block")
 
 	blockchain.chain = append(blockchain.chain, gb)
 

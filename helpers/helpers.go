@@ -3,13 +3,15 @@ package helpers
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	"runtime"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
 
 func Hash(data string) string {
-	// _, file, line, _ := runtime.Caller(1)
+	_, file, line, _ := runtime.Caller(1)
 
 	s := sha256.New()
 	s.Reset()
@@ -18,11 +20,11 @@ func Hash(data string) string {
 
 	h := hex.EncodeToString(bs)
 
-	// log.
-	// 	WithField("caller", fmt.Sprintf("%s#%d", file, line)).
-	// 	WithField("data", data).
-	// 	WithField("hash", h[0:4]).
-	// 	Debug("helpers.Hash: hash created from data")
+	log.
+		WithField("caller", fmt.Sprintf("%s#%d", file, line)).
+		WithField("data", data).
+		WithField("hash", h[0:4]).
+		Debug("helpers.Hash: hash created from data")
 
 	return h
 }
