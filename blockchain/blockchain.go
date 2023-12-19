@@ -28,7 +28,7 @@ type block struct {
 	Payload payload
 }
 
-type chain []block
+type Chain []block
 
 type minedBlock struct {
 	MinedBlock block
@@ -39,7 +39,7 @@ type minedBlock struct {
 
 type Blockchain struct {
 	blockNumber int
-	chain       chain
+	chain       Chain
 	difficulty  int
 	powPrefix   string
 }
@@ -205,7 +205,7 @@ func (b Blockchain) verifyBlock(bl block) bool {
 	return true
 }
 
-func (b *Blockchain) PushBlock(bl block) chain {
+func (b *Blockchain) PushBlock(bl block) Chain {
 	bld := fmt.Sprintf("%#v", bl)
 
 	log.
@@ -218,7 +218,7 @@ func (b *Blockchain) PushBlock(bl block) chain {
 			WithField("blockHash", bl.header.blockHash[0:b.difficulty]).
 			WithField("nonce", bl.header.nonce).
 			WithField("sequence", bl.Payload.Sequence).
-			Infof("Pushed verified block #%d", bl.Payload.Sequence)
+			Infof("Block #%d verified and pushed", bl.Payload.Sequence)
 	}
 
 	return b.chain

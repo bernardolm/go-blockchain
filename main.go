@@ -4,11 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"strconv"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bernardolm/go-blockchain/blockchain"
+	"github.com/bernardolm/go-blockchain/runner"
 )
 
 func main() {
@@ -43,25 +43,7 @@ func main() {
 		WithField("blockchain", fmt.Sprintf("%#v", bc)).
 		Debug("main: blockchain created")
 
-	chain := bc.Chain()
-
-	start := time.Now()
-
-	for i := 1; i <= blockNumber; i++ {
-		data := fmt.Sprintf("block %d", i)
-
-		payload := bc.CreatePayload(data)
-		mineInfo := bc.Mine(payload)
-		chain = bc.PushBlock(mineInfo.MinedBlock)
-
-		log.
-			WithField("data", data).
-			WithField("payload", fmt.Sprintf("%#v", payload)).
-			WithField("mineInfo", fmt.Sprintf("%#v", mineInfo)).
-			Debug("main: loop")
-	}
-
-	elapsed := time.Since(start)
+	chain, elapsed := runner.Run(&bc, blockNumber)
 
 	log.
 		WithField("length", len(chain)).

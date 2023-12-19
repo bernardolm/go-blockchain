@@ -8,7 +8,7 @@ import (
 func TestBlockchain_createGenesisBlock(t *testing.T) {
 	type fields struct {
 		blockNumber int
-		chain       chain
+		chain       Chain
 		difficulty  int
 		powPrefix   string
 	}
@@ -37,7 +37,7 @@ func TestBlockchain_createGenesisBlock(t *testing.T) {
 func TestBlockchain_lastBlock(t *testing.T) {
 	type fields struct {
 		blockNumber int
-		chain       chain
+		chain       Chain
 		difficulty  int
 		powPrefix   string
 	}
@@ -66,7 +66,7 @@ func TestBlockchain_lastBlock(t *testing.T) {
 func TestBlockchain_Chain(t *testing.T) {
 	type fields struct {
 		blockNumber int
-		chain       chain
+		chain       Chain
 		difficulty  int
 		powPrefix   string
 	}
@@ -95,7 +95,7 @@ func TestBlockchain_Chain(t *testing.T) {
 func TestBlockchain_getPreviousBlockHash(t *testing.T) {
 	type fields struct {
 		blockNumber int
-		chain       chain
+		chain       Chain
 		difficulty  int
 		powPrefix   string
 	}
@@ -124,7 +124,7 @@ func TestBlockchain_getPreviousBlockHash(t *testing.T) {
 func TestBlockchain_CreatePayload(t *testing.T) {
 	type fields struct {
 		blockNumber int
-		chain       chain
+		chain       Chain
 		difficulty  int
 		powPrefix   string
 	}
@@ -157,7 +157,7 @@ func TestBlockchain_CreatePayload(t *testing.T) {
 func TestBlockchain_Mine(t *testing.T) {
 	type fields struct {
 		blockNumber int
-		chain       chain
+		chain       Chain
 		difficulty  int
 		powPrefix   string
 	}
@@ -190,7 +190,7 @@ func TestBlockchain_Mine(t *testing.T) {
 func TestBlockchain_verifyBlock(t *testing.T) {
 	type fields struct {
 		blockNumber int
-		chain       chain
+		chain       Chain
 		difficulty  int
 		powPrefix   string
 	}
@@ -223,7 +223,7 @@ func TestBlockchain_verifyBlock(t *testing.T) {
 func TestBlockchain_PushBlock(t *testing.T) {
 	type fields struct {
 		blockNumber int
-		chain       chain
+		chain       Chain
 		difficulty  int
 		powPrefix   string
 	}
@@ -234,7 +234,7 @@ func TestBlockchain_PushBlock(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   chain
+		want   Chain
 	}{
 		// TODO: Add test cases.
 	}
